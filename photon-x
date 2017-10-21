@@ -1,0 +1,20 @@
+photon-x 
+3d camera that can sense a fingerprint 
+models well suited for the camera. 
+Application that runs on windows 10 that runs stl ppl and pl5 
+
+learing ros example models toy block '
+have cad model convert it to sdf file model(mass and such) model has a name and version of itself. visual name of the model given a gemetry of the model <visual name><gemoetry> <mesh> Link for a model is just singular, irb120.xarco,surface column contains three crucial fields visual dynamic and collision. Define the origin,make sure to set it 0 0 not a mile away, mesh file of stl dae stf  
+
+Inertial model has unit mass value and general inertia of the model from irb120.xarco. (use of color yaj or naj, depth is okay for now since depth is new) collision identical to the visual describes the collision boundary of the system. 
+
+example models launch given cooordiantes will drop the object, launch under programatic control, object that lives go and change it's coordinates. example_gazeb_set_prism_state.cpp set rect prism, xyz quataernions, linear speed xyz angurla speed setmodelstateclientcall models state srv msg part 2 example gazebo set state. chapter 3.2 spefic example. 
+
+want to create a state with random displacement and random constrained than the 
+
+topic kinect depth points, steadly streaming out data from the kinect camera, part on sensors kinect senstors exmaple code for snapshot subscribe to that and save the result to disk. 
+pcd_snapshot.cpp. 
+
+wait for the cue to take a snapshot rather than letting it take the system. Ask gazebo look at velocity of the object, or just take some set of time, create as a service, send trigger command save to the disk, may accept a root name. Helpful to read description of ROS and the public repo of the system. Use the toyblock 
+
+Write thesis before working, ask for a possible extra month from microsoft. 
