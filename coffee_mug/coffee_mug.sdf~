@@ -12,9 +12,9 @@
   #<xacro:property name="axel_offset" value="0.05" /> <!-- Space btw top of beam and the each joint -->
 
   <!-- Import all Gazebo-customization elements, including Gazebo colors -->
-  <xacro:include filename="$(find CoffeMug)/urdf/irb120.gazebo" />
+  <xacro:include filename="$/home/user/ros_ws/src/learning_ros/exmpl_models/urdf/irb120.gazebo" />
   <!-- Import Rviz colors -->
-  <xacro:include filename="$(find CoffeMug)/urdf/materials.xacro" />
+  <xacro:include filename="$/home/user/ros_ws/src/learning_ros/exmpl_models/urdf/materials.xacro" />
 
   <!-- Used for fixing robot to Gazebo 'base_link' -->
    <link name="link7">
@@ -29,7 +29,7 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
 	<!--box size="${width} ${width} ${height3}"/-->
-	        <mesh filename="package://CoffeMug/CoffeeMug.stl"/>
+	        <mesh filename="/home/user/ros_ws/src/learning_ros/exmpl_models/coffee_mug/CoffeeMug.stl"/>
       </geometry>
       <material name="orange"/>
     </visual>
