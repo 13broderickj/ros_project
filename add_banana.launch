@@ -1,0 +1,4 @@
+<launch>
+<!--x,y,z = 1.028, -0.11, 1 rpy = 0,0,0.43-->
+<node name="spawn_coffee_mug" pkg="gazebo_ros" type="spawn_model" args=" -file $(find exmpl_models)/banana/banana.sdf -sdf      -model rect_prism " />
+</launch>
