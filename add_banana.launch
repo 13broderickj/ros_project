@@ -1,4 +1,5 @@
 <launch>
 <!--x,y,z = 1.028, -0.11, 1 rpy = 0,0,0.43-->
-<node name="spawn_coffee_mug" pkg="gazebo_ros" type="spawn_model" args=" -file $(find exmpl_models)/banana/banana.sdf -sdf      -model banana -x 0.85 -y 0 -z 5" />
+  <arg name="height"  />
+<node name="spawn_coffee_mug" pkg="gazebo_ros" type="spawn_model" args=" -file $(find exmpl_models)/banana/banana.sdf -sdf      -model banana -x 0.85 -y 0 -z  $(arg height)" />
 </launch>
