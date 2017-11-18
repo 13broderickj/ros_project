@@ -25,7 +25,7 @@ DemoTfListener::DemoTfListener(ros::NodeHandle* nodehandle):nh_(*nodehandle)
         try {
                 //try to lookup transform, link2-frame w/rt base_link frame; this will test if
             // a valid transform chain has been published from base_frame to link2
-                tfListener_->lookupTransform("base_link", "link2", ros::Time(0), tfLink2WrtBaseLink);
+                tfListener_->lookupTransform("base_link", "kinect_pc_frame", ros::Time(0), tfLink2WrtBaseLink);
             } catch(tf::TransformException &exception) {
                 ROS_WARN("%s; retrying...", exception.what());
                 tferr=true;

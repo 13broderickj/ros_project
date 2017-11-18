@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
 	Eigen::Affine3f affineTransform= xformutils.transformTFToAffine3f( tfBaseToLink1);
 
 
-    ros::Subscriber pointcloud_subscriber = nh.subscribe("kinect/depth/points", 1, kinectCB);
+    ros::Subscriber pointcloud_subscriber = nh.subscribe("/camera/depth_registered/points", 1, kinectCB);
 	ROS_INFO("waiting for kinect data");
     while (!got_kinect_image) {
         ROS_INFO("waiting...");
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
         ros::Duration(0.5).sleep();
     }
     ROS_INFO("got snapshot; saving to file kinect_snapshot.pcd");
-PclUtils pclutils(&nh);
+PclUtils pclutils;
 	pclutils.transform_cloud(affineTransform,pclKinect_clr_ptr,pclWorld_clr_ptr);
     pcl::io::savePCDFile("kinect_snapshot.pcd", *pclWorld_clr_ptr, true);
 	//string snapshot_name=argv[1];
