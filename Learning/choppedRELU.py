@@ -38,7 +38,7 @@ test_size = batch_size      # Temporary heuristic. In future we'd like to decoup
 max_iterations = 200000       # Max number of iterations
 learning_rate = 1e-4        # Learning rate
 num_classes = 10            # Number of target classes, 10 for MNIST
-centers = [784,350]             # Number of "hidden neurons" 1 that is number of centroids [784,500,400,300,200,100,50]     
+centers = [784,500,300,200,150,100]             # Number of "hidden neurons" 1 that is number of centroids [784,500,400,300,200,100,50]     
 var_rbf = 225 # What variance do you expect workable for the RBF?
 
 
@@ -52,16 +52,11 @@ def rbf(x):
             bias = tf.Variable(tf.constant(1.1, shape=[num_center]), name='bias' + str(j))
             h=tf.matmul(prevLayer, w) + bias
             prevLayerTemp=rbf_activation(num_center,prevLayer,prevLayerNum)
-
             w2 = tf.Variable(tf.truncated_normal([num_center, num_center], stddev=1.0/math.sqrt(float(centers[j-1])), dtype=tf.float32),name='weight2' + str(j))
             bias2 = tf.Variable(tf.constant(1.1, shape=[num_center]), name='bias2' + str(j))
             h2=tf.matmul(prevLayerTemp,w2)+bias2
-            prevLayer2=tf.nn.relu(h2)
+            prevLayer=tf.nn.relu(h2)
 
-            w3 = tf.Variable(tf.truncated_normal([num_center, num_center], stddev=1.0/math.sqrt(float(centers[j-1])), dtype=tf.float32),name='weight3' + str(j))
-            bias3 = tf.Variable(tf.constant(1.1, shape=[num_center]), name='bias3' + str(j))
-            h3=tf.matmul(prevLayer2,w3)+bias3
-            prevLayer=tf.nn.relu(h3)
     with tf.name_scope('softmax_linear'):
 	    weights = tf.Variable(
 	        tf.truncated_normal([centers[-1], num_classes],
