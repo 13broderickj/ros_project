@@ -43,7 +43,7 @@ for root, subdirs, files in os.walk(walk_dir):
             debris = filename.split('.')
             if( not debris[-1]=='JPEG'):continue
             im = Image.open(file_path) # might be png, gif etc, for instance test1.png
-            maxsize = (60, 38)
+            maxsize = (60, 36)
             im.thumbnail(maxsize)
             im.save(file_path, 'JPEG')
             time.sleep( .5 )
