@@ -6,7 +6,7 @@ from __future__ import print_function
 import argparse
 import tempfile
 import tensorflow as tf
-import sys
+import sys,os
 import numpy
 import math
 # Number of classes is 2 (squares and triangles)
@@ -14,19 +14,15 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 FLAGS = None
 nClass=6
 
-# Simple model (set to True) or convolutional neural network (set to False)
-simpleModel=False
-fullFNN=False
 # Dimensions of image (pixels)
-height=640
-width=480
-NUM_CLASSES=6
-# The MNIST images are always 28x28 pixels.
-IMAGE_PIXELS = height * width
-hidden1_units=256
-hidden2_units=64
+height=36
+width=60
+# x is the input array, which will contain the data from an image 
+# this creates a placeholder for x, to be populated later
+x = tf.placeholder(tf.float32, [None, width*height])
+# similarly, we have a placeholder for true outputs (obtained from labels)
+y_ = tf.placeholder(tf.float32, [None, nClass])
 
-# Function to tell TensorFlow how to read a single image from input file
 def getImage(filename):
 	# convert filenames to a queue for an input pipeline.
 	filenameQ = tf.train.string_input_producer([filename],num_epochs=None)
@@ -38,22 +34,19 @@ def getImage(filename):
 	key, fullExample = recordReader.read(filenameQ)
 
 	# parse the full example into its' component features.
-	try:
-	    features = tf.parse_single_example(
-	        fullExample,
-	        features={
-	            'image/height': tf.FixedLenFeature([], tf.int64),
-	            'image/width': tf.FixedLenFeature([], tf.int64),
-	            'image/colorspace': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-	            'image/channels':  tf.FixedLenFeature([], tf.int64),
-	            'image/class/label': tf.FixedLenFeature([],tf.int64),
-	            'image/class/text': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-	            'image/format': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-	            'image/filename': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-	            'image/encoded': tf.FixedLenFeature([], dtype=tf.string, default_value='')
-	        })
-	except(InvalidArgumentError):
-	    raise ValueError
+	features = tf.parse_single_example(
+		fullExample,
+		features={
+			'image/height': tf.FixedLenFeature([], tf.int64),
+			'image/width': tf.FixedLenFeature([], tf.int64),
+			'image/colorspace': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+			'image/channels':  tf.FixedLenFeature([], tf.int64),            
+			'image/class/label': tf.FixedLenFeature([],tf.int64),
+			'image/class/text': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+			'image/format': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+			'image/filename': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+			'image/encoded': tf.FixedLenFeature([], dtype=tf.string, default_value='')
+		})
 
 
 	# now we are going to manipulate the label and image features
@@ -63,11 +56,11 @@ def getImage(filename):
 
 	# Decode the jpeg
 	with tf.name_scope('decode_jpeg',[image_buffer], None):
-	    # decode
-	    image = tf.image.decode_jpeg(image_buffer, channels=3)
+		# decode
+		image = tf.image.decode_jpeg(image_buffer, channels=3)
 
-	    # and convert to single precision data type
-	    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+		# and convert to single precision data type
+		image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
 
 	# cast image into a single array, where each element corresponds to the greyscale
@@ -83,17 +76,123 @@ def getImage(filename):
 
 	return label, image
 
+
+
+if True:
+	# run convolutional neural network model given in "Expert MNIST" TensorFlow tutorial
+
+	# functions to init small positive weights and biases
+	def weight_variable(shape):
+		initial = tf.truncated_normal(shape, stddev=0.1)
+		return tf.Variable(initial)
+
+	def bias_variable(shape):
+		initial = tf.constant(0.1, shape=shape)
+		return tf.Variable(initial)
+
+	# set up "vanilla" versions of convolution and pooling
+	def conv2d(x, W):
+		return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+
+	def max_pool_2x2(x):
+		return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
+		                      strides=[1, 2, 2, 1], padding='SAME')
+
+	print ("Running Convolutional Neural Network Model")
+	nFeatures1=32
+	nFeatures2=64
+	nNeuronsfc=1024
+
+	# use functions to init weights and biases
+	# nFeatures1 features for each patch of size 5x5
+	# SAME weights used for all patches
+	# 1 input channel
+	W_conv1 = weight_variable([5, 5, 1, nFeatures1])
+	b_conv1 = bias_variable([nFeatures1])
+
+	# reshape raw image data to 4D tensor. 2nd and 3rd indexes are W,H, fourth 
+	# means 1 colour channel per pixel
+	# x_image = tf.reshape(x, [-1,28,28,1])
+	x_image = tf.reshape(x, [-1,width,height,1])
+
+
+	# hidden layer 1 
+	# pool(convolution(Wx)+b)
+	# pool reduces each dim by factor of 2.
+	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
+	h_pool1 = max_pool_2x2(h_conv1)
+
+	# similarly for second layer, with nFeatures2 features per 5x5 patch
+	# input is nFeatures1 (number of features output from previous layer)
+	W_conv2 = weight_variable([5, 5, nFeatures1, nFeatures2])
+	b_conv2 = bias_variable([nFeatures2])
+
+
+	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
+	h_pool2 = max_pool_2x2(h_conv2)
+
+
+	# denseley connected layer. Similar to above, but operating
+	# on entire image (rather than patch) which has been reduced by a factor of 4 
+	# in each dimension
+	# so use large number of neurons 
+
+
+	W_fc1 = weight_variable([math.floor(width/4) * math.floor(height/4) * nFeatures2, nNeuronsfc])
+	b_fc1 = bias_variable([nNeuronsfc])
+
+	# flatten output from previous layer
+	h_pool2_flat = tf.reshape(h_pool2, [-1, math.floor(width/4) * math.floor(height/4) * nFeatures2])
+	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+
+	# reduce overfitting by applying dropout
+	# each neuron is kept with probability keep_prob
+	keep_prob = tf.placeholder(tf.float32)
+	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+
+	# create readout layer which outputs to nClass categories
+	W_fc2 = weight_variable([nNeuronsfc, nClass])
+	b_fc2 = bias_variable([nClass])
+
+	# define output calc (for each class) y = softmax(Wx+b)
+	# softmax gives probability distribution across all classes
+	# this is not run until later
+	y=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+
 def main():
-	new_saver = tf.train.import_meta_graph('my-model.meta')
-	new_saver.restore(sess, tf.train.latest_checkpoint('./'))
+
+
+	currDir=os.path.dirname(os.path.realpath(__file__))
+	tlabel, timage = getImage("data/validation-00001-of-00002")
+	timageBatch, tlabelBatch = tf.train.shuffle_batch(
+		[timage, tlabel], batch_size=1800,
+		capacity=1700,
+		min_after_dequeue=1000)
+	sess=tf.Session()
+	#First let's load meta graph and restore weights
+	saver = tf.train.import_meta_graph('new219ModelDeep.meta')
+	saver.restore(sess,tf.train.latest_checkpoint('./'))
 	all_vars = tf.get_collection('vars')
 	for v in all_vars:
-	    v_ = sess.run(v)
-	    print(v_)
-    noValue,image=getImage(FLAGS.picture_file)
-    feed_dict = {x: [image]}
-	classification = tf.run(v, feed_dict)
-	print( classification)
+		v_ = sess.run(v)
+		print(v_)
+	print("All done")
+
+	# run the session
+
+	# initialize the variables
+
+	sess.run(tf.global_variables_initializer())
+
+
+	# start the threads used for reading files
+	coord = tf.train.Coordinator()
+	threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+
+
+	tbatch_xs, tbatch_ys = sess.run([timageBatch, tlabelBatch])
+	print( tbatch_ys[1000:1010])
+	print("All done")
 
 
 if __name__ == '__main__':
@@ -102,4 +201,4 @@ if __name__ == '__main__':
 	                  default='pcdFileToUse.JPEG ',
 	                  help='Directory for storing input data')
 	FLAGS, unparsed = parser.parse_known_args()
-	tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+	main()
