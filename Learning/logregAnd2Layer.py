@@ -1,24 +1,24 @@
 import tensorflow as tf
-import sys
-import numpy
+import sys,subprocess
+import numpy,os
 import math
 # Number of classes is 2 (squares and triangles)
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
-
-nClass=3
+subprocess.call(['chmod', '0o444', 'path'])
+nClass=6
 
 # Simple model (set to True) or convolutional neural network (set to False)
-simpleModel=True
-fullFNN=True
+simpleModel=False
+fullFNN=False
 # Dimensions of image (pixels)
-height=640
-width=480
-NUM_CLASSES=3
-# The MNIST images are always 28x28 pixels.
+height=36
+width=60
+NUM_CLASSES=6
 IMAGE_PIXELS = height * width
-hidden1_units=256
-hidden2_units=64
+hidden1_units=64
+hidden2_units=32
 
+# Function to tell TensorFlow how to read a single image from input file
 # Function to tell TensorFlow how to read a single image from input file
 def getImage(filename):
     # convert filenames to a queue for an input pipeline.
@@ -31,22 +31,19 @@ def getImage(filename):
     key, fullExample = recordReader.read(filenameQ)
 
     # parse the full example into its' component features.
-    try:
-        features = tf.parse_single_example(
-            fullExample,
-            features={
-                'image/height': tf.FixedLenFeature([], tf.int64),
-                'image/width': tf.FixedLenFeature([], tf.int64),
-                'image/colorspace': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-                'image/channels':  tf.FixedLenFeature([], tf.int64),
-                'image/class/label': tf.FixedLenFeature([],tf.int64),
-                'image/class/text': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-                'image/format': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-                'image/filename': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
-                'image/encoded': tf.FixedLenFeature([], dtype=tf.string, default_value='')
-            })
-    except(InvalidArgumentError):
-        raise ValueError
+    features = tf.parse_single_example(
+        fullExample,
+        features={
+            'image/height': tf.FixedLenFeature([], tf.int64),
+            'image/width': tf.FixedLenFeature([], tf.int64),
+            'image/colorspace': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+            'image/channels':  tf.FixedLenFeature([], tf.int64),            
+            'image/class/label': tf.FixedLenFeature([],tf.int64),
+            'image/class/text': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+            'image/format': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+            'image/filename': tf.FixedLenFeature([], dtype=tf.string,default_value=''),
+            'image/encoded': tf.FixedLenFeature([], dtype=tf.string, default_value='')
+        })
 
 
     # now we are going to manipulate the label and image features
@@ -82,29 +79,37 @@ def getImage(filename):
 label, image = getImage("data/train-00000-of-00001")
 
 # and similarly for the validation data
-vlabel, vimage = getImage("data/validation-00000-of-00001")
+vlabel, vimage = getImage("data/validation-00000-of-00002")
 
+tlabel, timage = getImage("data/validation-00001-of-00002")
+
+x = tf.placeholder(tf.float32, [None, width*height])
+# similarly, we have a placeholder for true outputs (obtained from labels)
+y_ = tf.placeholder(tf.float32, [None, nClass])
 # associate the "label_batch" and "image_batch" objects with a randomly selected batch---
 # of labels and images respectively
 imageBatch, labelBatch = tf.train.shuffle_batch(
-    [image, label], batch_size=5,
-    capacity=50,
-    min_after_dequeue=25)
+    [image, label], batch_size=50,
+    capacity=21000,
+    min_after_dequeue=7500)
 
 # and similarly for the validation data 
 vimageBatch, vlabelBatch = tf.train.shuffle_batch(
-    [vimage, vlabel], batch_size=10,
-    capacity=100,
-    min_after_dequeue=50)
+    [vimage, vlabel], batch_size=100,
+    capacity=1500,
+    min_after_dequeue=1000)
+
+timageBatch, tlabelBatch = tf.train.shuffle_batch(
+    [timage, tlabel], batch_size=1700,
+    capacity=1700,
+    min_after_dequeue=1000)
 
 # interactive session allows inteleaving of building and running steps
 sess = tf.InteractiveSession()
 
-# x is the input array, which will contain the data from an image 
-# this creates a placeholder for x, to be populated later
-x = tf.placeholder(tf.float32, [None, width*height])
-# similarly, we have a placeholder for true outputs (obtained from labels)
-y_ = tf.placeholder(tf.float32, [None, nClass])
+#saver = tf.train.Saver()
+
+
 
 if simpleModel and not fullFNN:
   # run simple model y=Wx+b given in TensorFlow "MNIST" tutorial
@@ -181,11 +186,7 @@ elif not fullFNN:
   # in each dimension
   # so use large number of neurons 
 
-  # check our dimensions are a multiple of 4
-  if (width%4 or height%4):
-    print ("Error: width and height must be a multiple of 4")
-    sys.exit(1)
-  
+
   W_fc1 = weight_variable([math.floor(width/4) * math.floor(height/4) * nFeatures2, nNeuronsfc])
   b_fc1 = bias_variable([nNeuronsfc])
   
@@ -205,7 +206,7 @@ elif not fullFNN:
   # define output calc (for each class) y = softmax(Wx+b)
   # softmax gives probability distribution across all classes
   # this is not run until later
-  y=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+  y=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2,name='this_is_very_special')
 
 if fullFNN:
     print("Running Two Layer Full Connected Network")
@@ -235,7 +236,7 @@ if fullFNN:
             name='weights')
         biases = tf.Variable(tf.zeros([NUM_CLASSES]),
                              name='biases')
-        logits = tf.matmul(hidden2, weights) + biases
+        logits = tf.nn.softmax(tf.matmul(hidden2, weights) + biases)
         y=logits
 
 # measure of error of our model
@@ -246,24 +247,26 @@ cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y), reduction_indices=
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
 # argmax gives index of highest entry in vector (1st axis of 1D tensor)
-correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+correct_prediction = tf.equal(tf.argmax(y,1,name='weeee'), tf.argmax(y_,1))
 
 # get mean of all entries in correct prediction, the higher the better
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+saver = tf.train.Saver()
 
 
 # run the session
 
 # initialize the variables
-saver = tf.train.Saver()
+
 sess.run(tf.global_variables_initializer())
+
 
 # start the threads used for reading files
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess,coord=coord)
 
 # start training
-nSteps=10000
+nSteps=3000
 for i in range(nSteps):
 
     batch_xs, batch_ys = sess.run([imageBatch, labelBatch])
@@ -275,24 +278,38 @@ for i in range(nSteps):
       train_step.run(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
 
 
-    if (i+1)%1000 == 0: # then perform validation
-
+    if (i+1)%100 == 0: # then perform validation
+      totalAcc=0.0
+      for j in range(1):
       # get a validation batch
-      vbatch_xs, vbatch_ys = sess.run([vimageBatch, vlabelBatch])
-      if simpleModel:
-        train_accuracy = accuracy.eval(feed_dict={
-          x:vbatch_xs, y_: vbatch_ys})
-      else:
-        train_accuracy = accuracy.eval(feed_dict={
-          x:vbatch_xs, y_: vbatch_ys, keep_prob: 1.0})
-      print("step %d, training accuracy %g"%(i+1, train_accuracy))
-if fullFNN:
-    save_path = saver.save(sess, 'modelFNN.ckpt')
-    print('Model saved in file: ', save_path)
-if not simpleModel:
-    save_path = saver.save(sess, 'modelDeep.ckpt')
-    print ('Model saved in file: ', save_path)
-# finalise
+        vbatch_xs, vbatch_ys = sess.run([vimageBatch, vlabelBatch])
+        if simpleModel:
+          train_accuracy = accuracy.eval(feed_dict={
+            x:vbatch_xs, y_: vbatch_ys})
+        else:
+          train_accuracy = accuracy.eval(feed_dict={
+            x:vbatch_xs, y_: vbatch_ys, keep_prob: 1.0})
+        print("step %d, training accuracy %g"%(i+1, train_accuracy))
+tbatch_xs, tbatch_ys = sess.run([timageBatch, tlabelBatch])
+if simpleModel:
+  train_accuracy = accuracy.eval(feed_dict={
+    x:tbatch_xs, y_: tbatch_ys})
+else:
+  train_accuracy = accuracy.eval(feed_dict={
+    x:tbatch_xs, y_: tbatch_ys, keep_prob: 1.0})
+print("step %d, test accuracy %g"%(0, train_accuracy))
+    
+
+'''export_path_base = '/home/jasebroderick/Documents/MSThesis/'
+export_path = os.path.join(
+      tf.compat.as_bytes(export_path_base),
+      tf.compat.as_bytes('CNNModelSavedToUse6'))
+print ('Exporting trained model to', export_path)
+builder = tf.saved_model.builder.SavedModelBuilder(export_path)
+builder.add_meta_graph_and_variables(
+      sess,[tf.saved_model.tag_constants.SERVING])
+builder.save()'''
+saver.save(sess,'/tmp/model2.ckpt')
 coord.request_stop()
 coord.join(threads)
 
