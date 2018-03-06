@@ -22,7 +22,10 @@ nClass=6
 # Dimensions of image (pixels)
 height=36
 width=60
-
+parser = argparse.ArgumentParser()
+parser.add_argument('--picture_file', type=str,
+	                  default='pcdFileToUse.JPEG ',
+	                  help='Directory for storing input data')
 
 # this creates a placeholder for x, to be populated later
 
@@ -239,7 +242,7 @@ def main():
         v_ = sess.run(v)
         print(v_)
     chkp.print_tensors_in_checkpoint_file(pathToCheck,tensor_name='', all_tensors=True)
-    image=_process_image('x_Coffee_Mug2.JPEG')
+    image=_process_image(FLAGS.picture_file)
     print("Alll the variables printed above")
     y = graph.get_tensor_by_name("this_is_very_special:0")
     	# initialize the variables
@@ -269,14 +272,15 @@ def main():
            x : tbatch_xs , y_ : tbatch_ys, keep_prob: 1.0 }, session=sess )
     print("Test Accuracy :  ",train_accuracy)
     print("All done")
+    print(FLAGS.picture_file)
     coord.request_stop()
     coord.join(threads)
 
 
 if __name__ == '__main__':
-	#parser = argparse.ArgumentParser()
-	#parser.add_argument('--picture_file', type=str,
-	                  #default='pcdFileToUse.JPEG ',
-	                  #help='Directory for storing input data')
-	#FLAGS, unparsed = parser.parse_known_args()
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--picture_file', type=str,
+	                  default='x_Coffee_Mug2.JPEG ',
+	                  help='Directory for storing input data')
+	FLAGS, unparsed = parser.parse_known_args()
 	main()
