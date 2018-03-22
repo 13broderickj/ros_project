@@ -66,10 +66,11 @@ int main(int argc, char** argv) {
         ros::Duration(0.5).sleep();
     }
     ROS_INFO("got snapshot; saving to file kinect_snapshot.pcd");
-PclUtils pclutils(&nh);
+	PclUtils pclutils(&nh);
 	pclutils.transform_cloud(affineTransform,pclKinect_clr_ptr,pclWorld_clr_ptr);
-    pcl::io::savePCDFile("kinect_snapshot.pcd", *pclWorld_clr_ptr, true);
-	//string snapshot_name=argv[1];
+	string snapshot_name=argv[1];
+	pcl::io::savePCDFile(snapshot_name, *pclWorld_clr_ptr, true);
+
 
     return 0;
 }
