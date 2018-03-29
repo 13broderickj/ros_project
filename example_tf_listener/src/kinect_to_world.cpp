@@ -47,8 +47,9 @@ int main(int argc, char** argv) {
     tf::StampedTransform testStfBaseToLink2;
 
     tf::Transform tfBaseToLink1;
+    string link_name=argv[2];
 
-    demoTfListener.tfListener_->lookupTransform("base_link", "kinect_pc_frame", ros::Time(0), stfBaseToLink1);
+    demoTfListener.tfListener_->lookupTransform("base_link", link_name, ros::Time(0), stfBaseToLink1);
     cout << endl << "base to kinect: " << endl;
     demoTfListener.printStampedTf(stfBaseToLink1);
     tfBaseToLink1 = demoTfListener.get_tf_from_stamped_tf(stfBaseToLink1);
