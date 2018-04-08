@@ -52,11 +52,14 @@ void find_indices_box_filtered(pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_clou
     indices.clear();
     cout<<"box min: "<<box_pt_min.transpose()<<endl;
     cout<<"box max: "<<box_pt_max.transpose()<<endl;
+    cout<<"Pt total "<<npts<<endl;
     for (int i = 0; i < npts; ++i) {
         pt = input_cloud_ptr->points[i].getVector3fMap();
         //cout<<"pt: "<<pt.transpose()<<endl;
         //check if in the box:
-        if ((pt[0]>box_pt_min[0])&&(pt[0]<box_pt_max[0])&&(pt[1]>box_pt_min[1])&&(pt[1]<box_pt_max[1])&&(pt[2]>box_pt_min[2])&&(pt[2]<box_pt_max[2])) { 
+        if ((pt[0]>box_pt_min[0])&&(pt[0]<box_pt_max[0])&&
+			(pt[1]>box_pt_min[1])&&(pt[1]<box_pt_max[1])&&
+			(pt[2]>box_pt_min[2])&&(pt[2]<box_pt_max[2])) { 
             //passed box-crop test; include this point
                indices.push_back(i);
         }
@@ -113,8 +116,8 @@ int main(int argc, char** argv) {
     
     
     Eigen::Vector3f box_pt_min,box_pt_max;
-    box_pt_min<< -10, -10.330088, 0.691054;
-    box_pt_max<< 10.853099, 10.130088, 0.891054;
+    box_pt_min<< 0.453099, -0.530088, 0.691054;
+    box_pt_max<< 1.253099, 0.130088, 0.891054;
     int dim;
 
     
@@ -134,7 +137,7 @@ int main(int argc, char** argv) {
 	//find_indices_of_plane_from_patch(pclKinect_clr_ptr, selected_pts_cloud_ptr, indices);x,y,z = 0.753099, -0.230088, 0.791054
 
 	//find_indices_of_plane_from_patch(downsampled_kinect_ptr, selected_pts_cloud_ptr, indices);
-	find_indices_box_filtered(transformed_cloud_ptr,box_pt_min,  box_pt_max,indices);
+	find_indices_box_filtered(pclKinect_clr_ptr,box_pt_min,  box_pt_max,indices);
 	pcl::copyPointCloud(*pclKinect_clr_ptr, indices, *box_filtered_cloud_ptr); //extract these pts into new cloud
 	//the new cloud is a set of points from original cloud, coplanar with selected patch; display the result
 	pcl::io::savePCDFile("filteredCloud.pcd", *box_filtered_cloud_ptr, true);
