@@ -10,12 +10,9 @@ for i in "${arr[@]}"
 do
 	mkdir train/$i/
 	mkdir validate/$i/ 
-	for f in  train/$i/*;  do rm $f ; done
-	for f in  validate/$i/*;  do rm $f ; done
 	for f in PNGFiles/*$i*.jpeg; do mv $f train/$i/.; done
-	for f in PNGFiles/*$i*.jpeg; do mv $f train/$i/.; done
-	for f in  train/$i/*GolfBall3*; do mv $f  validate/$i/.; done
-	for f in  train/$i/*GolfBall7*; do mv $f  validate/$i/.; done
+	for f in  train/$i/*${i}3*; do mv $f  validate/$i/.; done
+	for f in  train/$i/*${i}7*; do mv $f  validate/$i/.; done
 	#for f in  *.jpeg;  do rm $f ; done
    # or do whatever with individual element of the array
 done
