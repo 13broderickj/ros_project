@@ -2,18 +2,21 @@ import tensorflow as tf
 import sys,subprocess
 import numpy,os
 import math
+from hyperopt import hp,fmin,tpe,STATUS_OK
+import hyperopt.pyll
+from hyperopt.pyll import scope
+
 # Number of classes is 2 (squares and triangles)
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
-subprocess.call(['chmod', '0o444', 'path'])
-nClass=6
+nClass=4
 
 # Simple model (set to True) or convolutional neural network (set to False)
 simpleModel=False
 fullFNN=False
 # Dimensions of image (pixels)
-height=36
-width=60
-NUM_CLASSES=6
+height=40
+width=40
+NUM_CLASSES=4
 IMAGE_PIXELS = height * width
 hidden1_units=64
 hidden2_units=32
@@ -76,12 +79,13 @@ def getImage(filename):
 
 # associate the "label" and "image" objects with the corresponding features read from 
 # a single example in the training data file
-label, image = getImage("data/train-00000-of-00001")
+dir_path = os.path.dirname(os.path.realpath(__file__))
+label, image = getImage(dir_path+"/data/train-00000-of-00001")
 
 # and similarly for the validation data
-vlabel, vimage = getImage("data/validation-00000-of-00002")
+vlabel, vimage = getImage(dir_path+"/data/validation-00000-of-00002")
 
-tlabel, timage = getImage("data/validation-00001-of-00002")
+tlabel, timage = getImage(dir_path+"/data/validation-00001-of-00002")
 
 x = tf.placeholder(tf.float32, [None, width*height])
 # similarly, we have a placeholder for true outputs (obtained from labels)
@@ -89,19 +93,19 @@ y_ = tf.placeholder(tf.float32, [None, nClass])
 # associate the "label_batch" and "image_batch" objects with a randomly selected batch---
 # of labels and images respectively
 imageBatch, labelBatch = tf.train.shuffle_batch(
-    [image, label], batch_size=50,
-    capacity=21000,
-    min_after_dequeue=7500)
+    [image, label], batch_size=10,
+    capacity=569646,
+    min_after_dequeue=7500)#515133
 
 # and similarly for the validation data 
 vimageBatch, vlabelBatch = tf.train.shuffle_batch(
     [vimage, vlabel], batch_size=100,
-    capacity=1500,
-    min_after_dequeue=1000)
+    capacity=int(165000/2),
+    min_after_dequeue=1000)#90360
 
 timageBatch, tlabelBatch = tf.train.shuffle_batch(
-    [timage, tlabel], batch_size=1700,
-    capacity=1700,
+    [timage, tlabel], batch_size=5000,
+    capacity=int(165000/2),
     min_after_dequeue=1000)
 
 # interactive session allows inteleaving of building and running steps
@@ -148,9 +152,10 @@ elif not fullFNN:
                           strides=[1, 2, 2, 1], padding='SAME')
 
   print ("Running Convolutional Neural Network Model")
-  nFeatures1=32
-  nFeatures2=64
-  nNeuronsfc=1024
+  nFeatures1=16
+  nFeatures2=32
+  nFeatures3=64
+  nNeuronsfc=1024+512
 
   # use functions to init weights and biases
   # nFeatures1 features for each patch of size 5x5
@@ -180,18 +185,24 @@ elif not fullFNN:
   h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
   h_pool2 = max_pool_2x2(h_conv2)
   
+
+  W_conv3 = weight_variable([5, 5, nFeatures2, nFeatures3])
+  b_conv3 = bias_variable([nFeatures3])
+  
+
+  h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
+  h_pool3 = max_pool_2x2(h_conv3)
   
   # denseley connected layer. Similar to above, but operating
   # on entire image (rather than patch) which has been reduced by a factor of 4 
   # in each dimension
   # so use large number of neurons 
 
-
-  W_fc1 = weight_variable([math.floor(width/4) * math.floor(height/4) * nFeatures2, nNeuronsfc])
+  W_fc1 = weight_variable([math.floor(width/8) * math.floor(height/8) * nFeatures3, nNeuronsfc])
   b_fc1 = bias_variable([nNeuronsfc])
   
   # flatten output from previous layer
-  h_pool2_flat = tf.reshape(h_pool2, [-1, math.floor(width/4) * math.floor(height/4) * nFeatures2])
+  h_pool2_flat = tf.reshape(h_pool3, [-1, math.floor(width/8) * math.floor(height/8) * nFeatures3])
   h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
   
   # reduce overfitting by applying dropout
@@ -266,40 +277,59 @@ coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess,coord=coord)
 
 # start training
-nSteps=3000
-for i in range(nSteps):
-
-    batch_xs, batch_ys = sess.run([imageBatch, labelBatch])
-
-    # run the training step with feed of images
-    if simpleModel:
-      train_step.run(feed_dict={x: batch_xs, y_: batch_ys})
-    else:
-      train_step.run(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
-
-
-    if (i+1)%100 == 0: # then perform validation
-      totalAcc=0.0
-      for j in range(1):
-      # get a validation batch
-        vbatch_xs, vbatch_ys = sess.run([vimageBatch, vlabelBatch])
-        if simpleModel:
-          train_accuracy = accuracy.eval(feed_dict={
-            x:vbatch_xs, y_: vbatch_ys})
-        else:
-          train_accuracy = accuracy.eval(feed_dict={
-            x:vbatch_xs, y_: vbatch_ys, keep_prob: 1.0})
-        print("step %d, training accuracy %g"%(i+1, train_accuracy))
-tbatch_xs, tbatch_ys = sess.run([timageBatch, tlabelBatch])
-if simpleModel:
-  train_accuracy = accuracy.eval(feed_dict={
-    x:tbatch_xs, y_: tbatch_ys})
-else:
-  train_accuracy = accuracy.eval(feed_dict={
-    x:tbatch_xs, y_: tbatch_ys, keep_prob: 1.0})
-print("step %d, test accuracy %g"%(0, train_accuracy))
-    
-
+nSteps=10000
+def runTrain():
+  for i in range(nSteps):
+  
+      batch_xs, batch_ys = sess.run([imageBatch, labelBatch])
+  
+      # run the training step with feed of images
+      if simpleModel:
+        train_step.run(feed_dict={x: batch_xs, y_: batch_ys})
+      else:
+        train_step.run(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
+  
+  
+      if (i+1)%100 == 0: # then perform validation
+        totalAcc=0.0
+        for j in range(1):
+        # get a validation batch
+          vbatch_xs, vbatch_ys = sess.run([vimageBatch, vlabelBatch])
+          if simpleModel:
+            train_accuracy = accuracy.eval(feed_dict={
+              x:vbatch_xs, y_: vbatch_ys})
+          else:
+            train_accuracy = accuracy.eval(feed_dict={
+              x:vbatch_xs, y_: vbatch_ys, keep_prob: 1.0})
+          print("step %d, training accuracy %g"%(i+1, train_accuracy))
+  tbatch_xs, tbatch_ys = sess.run([timageBatch, tlabelBatch])
+  if simpleModel:
+    train_accuracy = accuracy.eval(feed_dict={
+      x:tbatch_xs, y_: tbatch_ys})
+  else:
+    train_accuracy = accuracy.eval(feed_dict={
+      x:tbatch_xs, y_: tbatch_ys, keep_prob: 1.0})
+  print("step %d, test accuracy %g"%(0, train_accuracy))
+  return -1*train_accuracy
+@scope.define
+def hyperparameterObjective(nF1,nF2,nF3,nnFFSC,nStep):
+  nFeatures1=nF1
+  nFeatures2=nF2
+  nFeatures3=nF3
+  nNeuronsfc=nnFFSC
+  nSteps= nStep
+  trainAcc=runTrain()
+  return {'loss':trainAcc,'status':STATUS_OK}
+spaceChoice=scope.hyperparameterObjective([hp.uniform('nF1',1,32)], 
+                                         [hp.uniform('nF2',16,64)],
+                                         [hp.uniform('nF3',32,128)],
+                                         [hp.uniform('nnFFSC',512,2048)],
+                                         [hp.uniform('nStep',8000,20000) ])
+best=fmin(hyperparameterObjective,
+          space=spaceChoice,
+          algo=tpe.suggest,
+          max_evals=1000)
+print(best)
 '''export_path_base = '/home/jasebroderick/Documents/MSThesis/'
 export_path = os.path.join(
       tf.compat.as_bytes(export_path_base),
@@ -309,7 +339,7 @@ builder = tf.saved_model.builder.SavedModelBuilder(export_path)
 builder.add_meta_graph_and_variables(
       sess,[tf.saved_model.tag_constants.SERVING])
 builder.save()'''
-saver.save(sess,'/tmp/model2.ckpt')
+saver.save(sess,dir_path+'/model/robustNoise3NoInverseLONG10k.ckpt')#~/home/jasebroderick/Documents/MSThesis/model$ 
 coord.request_stop()
 coord.join(threads)
 
