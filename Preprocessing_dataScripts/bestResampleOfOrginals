@@ -1,0 +1,205 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec  4 18:43:24 2017
+
+@author: jasebroderick
+"""
+import os,time,random,pickle
+import re
+import numpy as np
+#left upper right down 
+from PIL import Image, ImageChops,ImageMath,ImageOps
+clsToCrop={'Stapler': {'a': 5, 'b': 0, 'c': 790, 'cls': 0, 'd': 290},
+'Duck': {'a': 225, 'b': 20, 'c': 418, 'cls': 0, 'd': 93},
+'PlasticCup' :{'a': 156.86880351907752, 'b': 11.931853106660316, 'c': 495.7087313005265, 'cls': 0, 'd':160},
+'tennisball': {'a': 205, 'b': 0, 'c': 467, 'cls': 0, 'd': 172},
+'GolfBall': {'a': 205, 'b': 0, 'c': 427, 'cls': 0, 'd': 153}}
+pixel_depth = 225.0
+image_size = 40
+times_noise = 3
+num_noise = 3
+chenDistr=None
+myDistr=None
+
+myClsToChenCls={'Stapler': 'stapler',
+'Duck': 'duck',
+'PlasticCup' :'cup',
+'tennisball': 'tball',
+'GolfBall':'gball' }
+
+with (open("chenDistr.pkl", "rb")) as openfile:
+    while True:
+        try:
+            chenDistr=pickle.load(openfile)
+        except EOFError:
+            break
+with (open("myDistr.pkl", "rb")) as openfile:
+    while True:
+        try:
+            myDistr=pickle.load(openfile)
+        except EOFError:
+            break
+        
+def createBins(vals,nbin):
+    bins=[(0,0) for i in range(nbin)]
+    currBinVal=0
+    currBinIndex=0
+    prevBinIndex=0
+    total=sum(vals)
+    for i in range(len(vals)):
+        binTotal=total/nbin
+        currBinVal+=vals[i]
+        while(currBinVal>=binTotal):
+            bins[currBinIndex]=(prevBinIndex,i)
+            prevBinIndex=i
+            currBinVal-=binTotal
+            currBinIndex+=1
+        else:
+            None
+    return bins
+
+
+
+def getPixelIntensity(valOfPixel,binFrom,binTo):
+    bins=[]
+    #print(valOfPixel,binFrom,binTo)
+    for i,bin in enumerate(binFrom):
+        if(bin[0]<=valOfPixel<=bin[1] ):
+            bins.append(i)
+    binIndex=random.randint(0,len(bins)-1)
+    binIndexChosen=bins[binIndex]
+    #print(binIndexChosen)
+    valOfPixel=random.randint(binTo[binIndexChosen][0],binTo[binIndexChosen][1])   
+    return valOfPixel
+
+
+def scaleToChen(im,cls):
+    myClsDist=myDistr[cls]
+    chenCls=myClsToChenCls[cls]
+    chenClsDist=chenDistr[chenCls]
+    chenVals=[]
+    myVals=[]
+    for key in sorted(chenClsDist.keys()):
+        chenVals.append(chenClsDist[key])
+    for key in sorted(myClsDist.keys()):
+        myVals.append(myClsDist[key])
+    myBinCls=createBins(myVals,50)
+    chenBinCls=createBins(chenVals,50)
+    xLen,yLen=im.size
+    imCopy=im.copy()
+    for x in range(xLen):
+        for y in range(yLen):
+            valToPutIn=getPixelIntensity(im.getpixel((x,y)),myBinCls,chenBinCls)
+            imCopy.putpixel((x, y),valToPutIn )
+    return imCopy
+    
+
+
+def trim(im):
+    bg = Image.new(im.mode, im.size, im.getpixel((0,0)))
+    diff = ImageChops.difference(im, bg)
+    bbox = diff.getbbox()
+    if bbox:
+        return im.crop(bbox)
+
+
+def addChenNoise(im):
+    for n in range(num_noise):
+            x_pxl = random.randint(0,image_size-1)
+            y_pxl = random.randint(0,image_size-1)
+            im.putpixel((x_pxl,y_pxl),0)
+    ndimg = np.array(im).astype(float)
+    image_data = (ndimg - pixel_depth / 2) / pixel_depth
+    return Image.fromarray(np.uint8(image_data * 255) , 'L')
+
+
+def bootstrapSample(im,shift,a,b,c):
+    imCopyLeft=im.copy()
+    imCopyRight=im.copy()
+    imCopyUp=im.copy()
+    imCopyDown=im.copy()
+    imCopyLD=im.copy()
+    imCopyRD=im.copy()
+    imCopyLU=im.copy()
+    imCopyRU=im.copy()
+    xLen,yLen=im.size
+    '''imCopy=im2.copy()
+    for x in range(xLen):
+        for y in range(yLen):
+            if(im2.getpixel((x,y))>=a):
+                imCopy.putpixel((x, y), im2.getpixel((x,y))+b+random.randint(-10,10))
+            else:
+                imCopy.putpixel((x, y),c+random.randint(-15,15))
+    im=imCopy'''
+    #
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyLeft.putpixel((x, y), im.getpixel(((x+shift)%xLen,y)))
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyRight.putpixel((x, y), im.getpixel(((x-shift)%xLen,y)))
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyUp.putpixel((x, y), im.getpixel((x,(y+shift)%yLen)))
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyDown.putpixel((x, y), im.getpixel((x,(y-shift)%yLen)))
+    for x in range(xLen):
+       for y in range(yLen):
+           imCopyLD.putpixel((x, y), im.getpixel(((x+shift)%xLen,(y-shift)%yLen)))
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyRD.putpixel((x, y), im.getpixel(((x-shift)%xLen,(y-shift)%yLen)))
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyLU.putpixel((x, y), im.getpixel(((x+shift)%xLen,(y+shift)%yLen)))
+    for x in range(xLen):
+           for y in range(yLen):
+               imCopyRU.putpixel((x, y), im.getpixel(((x-shift)%xLen,(y+shift)%yLen)))
+    return [imCopyLeft,imCopyRight,imCopyUp,imCopyDown,imCopyLD,imCopyRD,imCopyLU,imCopyRU] 
+
+
+imageCrop=None
+dir_path = os.path.dirname(os.path.realpath(__file__))
+for filename in os.listdir(dir_path):
+    debris = filename.split('.')
+    if( not debris[-1]=='png'):continue
+    im = Image.open(dir_path+'/'+filename) # might be png, gif etc, for instance test1.png
+    imageCrop=None
+    for cls in clsToCrop:
+        if(re.search(cls, filename, re.IGNORECASE)): 
+            left=int(clsToCrop[cls]['a'])+random.randint(0,5)
+            upper=int(clsToCrop[cls]['b'])+random.randint(0,5)
+            right=int(clsToCrop[cls]['c'])+random.randint(0,5)
+            down=int(clsToCrop[cls]['d'])+random.randint(0,5)
+            imInput = ImageMath.eval('im/256', {'im':im}).convert('L')
+            imScale=scaleToChen(imInput,cls)
+            x=imScale.crop((left,upper,right,down))# old one im.crop((100,0,550,280))#im.crop((100,150,550,380)) # ' 2 3 4 7 8 9 10 - no 5 6 
+            maxsize = (40, 40)
+            imageCrop=ImageOps.fit(x, maxsize, Image.ANTIALIAS)
+            im2Save=imageCrop
+            break
+    #im2.save(filename.replace('png','0_t2scaleChenNormaly_tennisball723.jpegjpeg'), 'JPEG')
+    shifts=[i for i in range(8)]
+    for shift in shifts:
+        if('StaplerBlahblahblah' not in filename):
+            imgs=bootstrapSample(im2Save,shift,0,0,0)
+            for i,imToModify in enumerate(imgs[3:6]):
+                #imageNoise=addChenNoise(imToModify) 
+                imageCrop=ImageOps.fit(imToModify, maxsize, Image.ANTIALIAS)
+                for n in range(1):
+
+                    #imageNoise=addChenNoise(imToModify)    
+                    im2Save=imageCrop
+                    im2Save.save(str(shift)+'_t'+str(i)+'scaleChenNormal'+filename.replace('png','jpeg'), 'JPEG')
+        else:
+            imgs=bootstrapSample(im2,shift,0,0,0)
+            for i,imToModify in enumerate(imgs):
+                #for time in range(times_noise):
+                    #imageNoise=addChenNoise(imToModify)    
+                imageCrop=ImageOps.fit(imToModify, maxsize, Image.ANTIALIAS)
+                imageCrop.save(str(shift)+'_t'+str(i)+'scaleChen'+filename.replace('png','jpeg'), 'JPEG')
+
+
+
+
